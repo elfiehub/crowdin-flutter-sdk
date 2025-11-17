@@ -1,25 +1,50 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:crowdin_sdk/src/crowdin_storage.dart';
 import 'package:crowdin_sdk/src/exceptions/crowdin_exceptions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+
+// Mock path provider for testing
+class MockPathProviderPlatform extends Fake
+    with MockPlatformInterfaceMixin
+    implements PathProviderPlatform {
+  final Directory tempDir;
+
+  MockPathProviderPlatform(this.tempDir);
+
+  @override
+  Future<String?> getApplicationDocumentsPath() async {
+    return tempDir.path;
+  }
+}
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  
   group('CrowdinStorage', () {
     late CrowdinStorage crowdinStorage;
-    late SharedPreferences sharedPrefs;
+    late Directory tempDir;
 
     setUp(() async {
-      SharedPreferences.setMockInitialValues({});
-      sharedPrefs = await SharedPreferences.getInstance();
+      // Create a temporary directory for testing
+      tempDir = await Directory.systemTemp.createTemp('crowdin_test_');
+      
+      // Set up mock path provider
+      PathProviderPlatform.instance = MockPathProviderPlatform(tempDir);
+      
       crowdinStorage = CrowdinStorage();
       await crowdinStorage.init();
     });
 
     tearDown(() async {
-      await sharedPrefs.clear();
+      // Clean up the temporary directory
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
     });
 
     test('set and get translation timestamp', () async {
@@ -44,9 +69,7 @@ void main() {
     });
 
     test('get exception in case of empty distribution ', () async {
-      await crowdinStorage.setDistribution('');
-
-      expect(() => crowdinStorage.getTranslation(const Locale('en', 'US')),
+      expect(() async => await crowdinStorage.setDistribution(''),
           throwsA(const TypeMatcher<CrowdinException>()));
     });
 

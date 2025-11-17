@@ -1,37 +1,63 @@
+import 'dart:io';
 import 'package:crowdin_sdk/src/crowdin_request_limiter.dart';
 import 'package:crowdin_sdk/src/crowdin_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:crowdin_sdk/src/crowdin_api.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'crowdin_request_limiter_test.dart';
 
 class MockHttpClient extends Mock implements http.Client {}
 
+// Mock path provider for testing
+class MockPathProviderPlatform extends Fake
+    with MockPlatformInterfaceMixin
+    implements PathProviderPlatform {
+  final Directory tempDir;
+
+  MockPathProviderPlatform(this.tempDir);
+
+  @override
+  Future<String?> getApplicationDocumentsPath() async {
+    return tempDir.path;
+  }
+}
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  
   late CrowdinApi crowdinApi;
   late MockHttpClient mockHttpClient;
   late CrowdinRequestLimiter requestLimiter;
-  late SharedPreferences sharedPrefs;
+  late Directory tempDir;
   late CrowdinStorage storage;
 
   setUp(() async {
     mockHttpClient = MockHttpClient();
     crowdinApi = CrowdinApi();
     requestLimiter = CrowdinRequestLimiter();
-    SharedPreferences.setMockInitialValues({});
+    
+    // Create a temporary directory for testing
+    tempDir = await Directory.systemTemp.createTemp('crowdin_test_');
+    
+    // Set up mock path provider
+    PathProviderPlatform.instance = MockPathProviderPlatform(tempDir);
+    
     registerFallbackValue(Uri());
     crowdinApi.requestLimiter = requestLimiter;
     crowdinApi.client = mockHttpClient;
-    sharedPrefs = await SharedPreferences.getInstance();
     storage = CrowdinStorage();
     await storage.init();
   });
 
   tearDown(() async {
-    await sharedPrefs.clear();
+    // Clean up the temporary directory
+    if (await tempDir.exists()) {
+      await tempDir.delete(recursive: true);
+    }
   });
 
   group('CrowdinApi', () {

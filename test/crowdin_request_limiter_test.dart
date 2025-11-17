@@ -1,12 +1,28 @@
+import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:crowdin_sdk/src/crowdin_request_limiter.dart';
 import 'package:crowdin_sdk/src/crowdin_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 class MockCrowdinStorage extends Mock implements CrowdinStorage {}
+
+// Mock path provider for testing
+class MockPathProviderPlatform extends Fake
+    with MockPlatformInterfaceMixin
+    implements PathProviderPlatform {
+  final Directory tempDir;
+
+  MockPathProviderPlatform(this.tempDir);
+
+  @override
+  Future<String?> getApplicationDocumentsPath() async {
+    return tempDir.path;
+  }
+}
 
 final DateFormat _formatter = DateFormat('yyyy-MM-dd');
 
@@ -16,20 +32,29 @@ String getTodayDateString() {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  
   late CrowdinRequestLimiter requestLimiter;
   late CrowdinStorage storage;
-  late SharedPreferences sharedPrefs;
+  late Directory tempDir;
 
   setUp(() async {
-    SharedPreferences.setMockInitialValues({});
-    sharedPrefs = await SharedPreferences.getInstance();
+    // Create a temporary directory for testing
+    tempDir = await Directory.systemTemp.createTemp('crowdin_test_');
+    
+    // Set up mock path provider
+    PathProviderPlatform.instance = MockPathProviderPlatform(tempDir);
+    
     storage = CrowdinStorage();
     requestLimiter = CrowdinRequestLimiter();
     await storage.init();
   });
 
   tearDown(() async {
-    await sharedPrefs.clear();
+    // Clean up the temporary directory
+    if (await tempDir.exists()) {
+      await tempDir.delete(recursive: true);
+    }
   });
 
   test('should initialize with storage values', () async {
