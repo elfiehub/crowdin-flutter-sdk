@@ -38,13 +38,13 @@ class CrowdinStorage {
     }
   }
 
-  int? getTranslationTimestamp() {
+  Future<int?> getTranslationTimestamp() async {
     try {
       final file = File(path.join(_storageDirectory.path, _kTranslationTimestampFile));
-      if (!file.existsSync()) {
+      if (!await file.exists()) {
         return null;
       }
-      final content = file.readAsStringSync();
+      final content = await file.readAsString();
       final data = jsonDecode(content) as Map<String, dynamic>;
       return data['timestamp'] as int?;
     } catch (ex) {
@@ -71,16 +71,16 @@ class CrowdinStorage {
     }
   }
 
-  Map<String, dynamic>? getTranslation(Locale locale) {
+  Future<Map<String, dynamic>?> getTranslation(Locale locale) async {
     try {
       final fileName = '${locale.toString().replaceAll('-', '_')}.json';
       final file = File(path.join(_storageDirectory.path, fileName));
       
-      if (!file.existsSync()) {
+      if (!await file.exists()) {
         return null;
       }
       
-      final content = file.readAsStringSync();
+      final content = await file.readAsString();
       final distribution = jsonDecode(content) as Map<String, dynamic>;
       
       return distribution;
@@ -89,22 +89,22 @@ class CrowdinStorage {
     }
   }
 
-  void setIsPausedPermanently(bool shouldPause) {
+  Future<void> setIsPausedPermanently(bool shouldPause) async {
     try {
       final file = File(path.join(_storageDirectory.path, _kIsPausedPermanentlyFile));
-      file.writeAsStringSync(jsonEncode({'isPaused': shouldPause}));
+      await file.writeAsString(jsonEncode({'isPaused': shouldPause}));
     } catch (ex) {
       throw CrowdinException("Can't store the isPausedPermanently value");
     }
   }
 
-  bool? getIsPausedPermanently() {
+  Future<bool?> getIsPausedPermanently() async {
     try {
       final file = File(path.join(_storageDirectory.path, _kIsPausedPermanentlyFile));
-      if (!file.existsSync()) {
+      if (!await file.exists()) {
         return null;
       }
-      final content = file.readAsStringSync();
+      final content = await file.readAsString();
       final data = jsonDecode(content) as Map<String, dynamic>;
       return data['isPaused'] as bool?;
     } catch (ex) {
@@ -112,22 +112,22 @@ class CrowdinStorage {
     }
   }
 
-  void setErrorMap(Map<String, int> errorMap) {
+  Future<void> setErrorMap(Map<String, int> errorMap) async {
     try {
       final file = File(path.join(_storageDirectory.path, _kErrorMapFile));
-      file.writeAsStringSync(jsonEncode(errorMap));
+      await file.writeAsString(jsonEncode(errorMap));
     } catch (ex) {
       throw CrowdinException("Can't store the errorMap");
     }
   }
 
-  Map<String, int>? getErrorMap() {
+  Future<Map<String, int>?> getErrorMap() async {
     try {
       final file = File(path.join(_storageDirectory.path, _kErrorMapFile));
-      if (!file.existsSync()) {
+      if (!await file.exists()) {
         return null;
       }
-      final content = file.readAsStringSync();
+      final content = await file.readAsString();
       final decodedMap = jsonDecode(content) as Map<String, dynamic>;
       return decodedMap.map((k, v) => MapEntry(k, v as int));
     } catch (ex) {

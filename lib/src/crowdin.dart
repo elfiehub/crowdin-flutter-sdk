@@ -83,9 +83,9 @@ class Crowdin {
   }) async {
     await _storage.init();
 
-    CrowdinRequestLimiter().init(_storage);
+    await CrowdinRequestLimiter().init(_storage);
 
-    _timestampCached = _storage.getTranslationTimestamp();
+    _timestampCached = await _storage.getTranslationTimestamp();
 
     _distributionHash = distributionHash;
     CrowdinLogger.printLog('distributionHash $_distributionHash');
@@ -175,7 +175,7 @@ class Crowdin {
 
     try {
       if (!canUpdate) {
-        distribution = _storage.getTranslation(locale);
+        distribution = await _storage.getTranslation(locale);
         if (distribution != null) {
           _arb = AppResourceBundle(distribution);
           if (_withRealTimeUpdates) {

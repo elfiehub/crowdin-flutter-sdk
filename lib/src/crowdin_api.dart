@@ -44,12 +44,12 @@ class CrowdinApi {
       if (response == null) {
         return null;
       } else if (response.statusCode >= 400 && response.statusCode < 500) {
-        requestLimiter.incrementErrorCounter();
+        await requestLimiter.incrementErrorCounter();
         return null;
       } else {
         Map<String, dynamic> responseDecoded =
             jsonDecode(utf8.decode(response.bodyBytes));
-        requestLimiter.reset();
+        await requestLimiter.reset();
         return responseDecoded;
       }
     } catch (ex) {

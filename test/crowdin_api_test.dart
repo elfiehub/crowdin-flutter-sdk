@@ -138,13 +138,13 @@ void main() {
       final result = await crowdinApi.getManifest(distributionHash: 'hash');
 
       expect(result, isNull);
-      expect(storage.getErrorMap(), {getTodayDateString(): 1});
+      expect(await storage.getErrorMap(), {getTodayDateString(): 1});
     });
 
     test(
         'getManifest returns null and do not call request when requests paused',
         () async {
-      storage.setIsPausedPermanently(true);
+      await storage.setIsPausedPermanently(true);
       await requestLimiter.init(storage);
 
       final uri =

@@ -58,42 +58,42 @@ void main() {
   });
 
   test('should initialize with storage values', () async {
-    storage.setIsPausedPermanently(true);
+    await storage.setIsPausedPermanently(true);
     await requestLimiter.init(storage);
-    expect(storage.getIsPausedPermanently(), true);
+    expect(await storage.getIsPausedPermanently(), true);
     expect(requestLimiter.pauseRequests, true);
   });
 
-  test('should increment error counter', () {
-    requestLimiter.init(storage);
-    requestLimiter.incrementErrorCounter();
-    expect(storage.getErrorMap(), {getTodayDateString(): 1});
-    requestLimiter.incrementErrorCounter();
-    expect(storage.getErrorMap(), {getTodayDateString(): 2});
+  test('should increment error counter', () async {
+    await requestLimiter.init(storage);
+    await requestLimiter.incrementErrorCounter();
+    expect(await storage.getErrorMap(), {getTodayDateString(): 1});
+    await requestLimiter.incrementErrorCounter();
+    expect(await storage.getErrorMap(), {getTodayDateString(): 2});
   });
 
   test('should pause requests after max errors in a day', () async {
-    storage.setErrorMap({getTodayDateString(): 10});
+    await storage.setErrorMap({getTodayDateString(): 10});
     await requestLimiter.init(storage);
     expect(requestLimiter.pauseRequests, true);
   });
 
   test('should reset error map and pause state', () async {
-    storage.setErrorMap({getTodayDateString(): 10});
+    await storage.setErrorMap({getTodayDateString(): 10});
     await requestLimiter.init(storage);
     expect(requestLimiter.pauseRequests, true);
-    requestLimiter.reset();
+    await requestLimiter.reset();
     expect(requestLimiter.pauseRequests, false);
   });
 
   test('should stop requests permanently after max days in a row', () async {
-    storage.setErrorMap({
+    await storage.setErrorMap({
       _formatter.format(DateTime.now()): 10,
       _formatter.format(DateTime.now().subtract(const Duration(days: 1))): 10,
       _formatter.format(DateTime.now().subtract(const Duration(days: 2))): 10,
     });
     await requestLimiter.init(storage);
-    requestLimiter.incrementErrorCounter();
+    await requestLimiter.incrementErrorCounter();
     expect(requestLimiter.pauseRequests, true);
   });
 }
