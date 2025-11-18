@@ -113,9 +113,7 @@ class Crowdin {
       /// fetch manifest file to check if new updates available
       _timestamp = manifest['timestamp'];
 
-      _mappingFilePaths = (manifest['mapping'] as List<dynamic>)
-          .map((e) => e.toString())
-          .toList();
+      _mappingFilePaths = (manifest['mapping'] as List<dynamic>).map((e) => e.toString()).toList();
     }
 
     _withRealTimeUpdates = withRealTimeUpdates;
@@ -129,20 +127,18 @@ class Crowdin {
 
   static void checkManifestForLocale(Locale locale) {
     if (manifest == null) {
-      throw CrowdinException(
-          'Crowdin manifest is not set. Please call Crowdin.init() before loading translations.');
+      throw CrowdinException('Crowdin manifest is not set. Please call Crowdin.init() before loading translations.');
     }
 
     final mappedLocale = CrowdinMapper.mapLocale(locale);
 
-    var languages = (manifest!['languages'] as List<dynamic>? ?? [])
-        .map((v) => CrowdinMapper.localeFromLanguageCode(v.toString()));
+    var languages =
+        (manifest!['languages'] as List<dynamic>? ?? []).map((v) => CrowdinMapper.localeFromLanguageCode(v.toString()));
     var customLanguages = (manifest!['customLanguages'] as List<dynamic>? ?? [])
         .map((v) => CrowdinMapper.localeFromLanguageCode(v.toString()));
     var allLanguages = [...languages, ...customLanguages];
 
-    allLanguages.firstWhere(
-        (l) => l.toLanguageTag() == mappedLocale.toLanguageTag(),
+    allLanguages.firstWhere((l) => l.toLanguageTag() == mappedLocale.toLanguageTag(),
         orElse: () => throw CrowdinException(
             'Locale ${locale.toLanguageTag()} is not a target language for this Crowdin project.'));
   }
@@ -161,8 +157,7 @@ class Crowdin {
       }
     }
 
-    if (!await _isConnectionTypeAllowed(_connectionType) ||
-        CrowdinRequestLimiter().pauseRequests) {
+    if (!await _isConnectionTypeAllowed(_connectionType) || CrowdinRequestLimiter().pauseRequests) {
       _arb = null;
       return; // return from function if connection type is forbidden for downloading translations
     }
@@ -179,8 +174,7 @@ class Crowdin {
         if (distribution != null) {
           _arb = AppResourceBundle(distribution);
           if (_withRealTimeUpdates) {
-            crowdinPreviewManager.setPreviewArb(
-                _arb!); // set default translations for real-time preview
+            crowdinPreviewManager.setPreviewArb(_arb!); // set default translations for real-time preview
           }
           return;
         }
@@ -189,14 +183,42 @@ class Crowdin {
       // map locales to avoid problems with different language codes on Crowdin side and supported
       // by GlobalMaterialLocalizations class for some countries
       Locale mappedLocale =
-          _distributionsMap.keys.contains(locale.toLanguageTag())
-              ? locale
-              : CrowdinMapper.mapLocale(locale);
+          _distributionsMap.keys.contains(locale.toLanguageTag()) ? locale : CrowdinMapper.mapLocale(locale);
 
-      distribution = await _api.loadTranslations(
-          path: _distributionsMap[mappedLocale.toLanguageTag()][0] as String,
-          distributionHash: _distributionHash,
-          timeStamp: _timestamp.toString());
+      final listPathArbFile = _distributionsMap[mappedLocale.toLanguageTag()];
+      final List<Future<Map<String, dynamic>?>> listDistribution = [];
+      if (listPathArbFile != null && listPathArbFile is List<String>) {
+        for (final path in listPathArbFile) {
+          if (path.isNotEmpty && path.endsWith('.arb')) {
+            listDistribution.add(_api.loadTranslations(
+              path: path,
+              distributionHash: _distributionHash,
+              timeStamp: _timestamp.toString(),
+            ));
+          }
+        }
+      }
+
+      if (listDistribution.isEmpty) {
+        _arb = null;
+        return;
+      }
+      // fetch all files
+      final results = await Future.wait(listDistribution);
+      for (final result in results) {
+        if (result != null) {
+          if (distribution == null) {
+            distribution = result;
+          } else {
+            for (final key in result.keys) {
+              if (distribution[key] != null) {
+                distribution[key] = result[key];
+              }
+            }
+          }
+        }
+      }
+
       if (distribution != null) {
         /// todo remove when distribution file locale will be fixed
         distribution['@@locale'] = locale.toString();
@@ -273,8 +295,7 @@ bool canUseCachedTranslation({
   }
 }
 
-Future<bool> _isConnectionTypeAllowed(
-    InternetConnectionType connectionType) async {
+Future<bool> _isConnectionTypeAllowed(InternetConnectionType connectionType) async {
   var connectionResult = await Connectivity().checkConnectivity();
   //ignore: unnecessary_type_check
   final List<ConnectivityResult> connectionStatus = connectionResult is Iterable
@@ -300,8 +321,7 @@ Duration setUpdateInterval(Duration updatesInterval) {
   Duration updInterval;
   if (updatesInterval.inMinutes < 15) {
     updInterval = const Duration(minutes: 15);
-    CrowdinLogger.printLog(
-        'updates interval was settled to the default minimum value 15 minutes');
+    CrowdinLogger.printLog('updates interval was settled to the default minimum value 15 minutes');
   } else {
     updInterval = updatesInterval;
   }
