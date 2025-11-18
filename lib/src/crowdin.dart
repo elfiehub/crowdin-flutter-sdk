@@ -211,7 +211,8 @@ class Crowdin {
             distribution = result;
           } else {
             for (final key in result.keys) {
-              if (distribution[key] != null) {
+              // add if null only (prevent override existing values)
+              if (distribution[key] == null) {
                 distribution[key] = result[key];
               }
             }
