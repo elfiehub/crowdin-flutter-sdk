@@ -4,6 +4,7 @@ import 'dart:ui';
 
 import 'package:crowdin_sdk/src/crowdin_logger.dart';
 import 'package:crowdin_sdk/src/exceptions/crowdin_exceptions.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
@@ -55,9 +56,8 @@ class CrowdinStorage {
   Future<void> setDistribution(String distribution) async {
     try {
       // Parse the distribution to get locale
-      final distributionData = jsonDecode(distribution) as Map<String, dynamic>;
+      final distributionData = await compute(decode, distribution);
       final locale = distributionData['@@locale'] as String?;
-      
       if (locale == null) {
         throw CrowdinException("Distribution doesn't contain locale information");
       }
@@ -81,7 +81,7 @@ class CrowdinStorage {
       }
       
       final content = await file.readAsString();
-      final distribution = jsonDecode(content) as Map<String, dynamic>;
+      final distribution = await compute(decode, content);
       
       return distribution;
     } catch (ex) {
@@ -134,5 +134,13 @@ class CrowdinStorage {
       CrowdinLogger.printLog("Can't get errorMap from storage");
       return null;
     }
+  }
+
+  Map<String, dynamic> decode(String content) {
+    return jsonDecode(content) as Map<String, dynamic>;
+  }
+
+  String encode(Map<String, dynamic> json) {
+    return jsonEncode(json);
   }
 }
