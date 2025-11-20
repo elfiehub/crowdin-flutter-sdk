@@ -187,7 +187,7 @@ class Crowdin {
 
       final listPathArbFile = _distributionsMap[mappedLocale.toLanguageTag()];
       final List<Future<Map<String, dynamic>?>> listDistribution = [];
-      if (listPathArbFile != null && listPathArbFile is List<String>) {
+      if (listPathArbFile != null && listPathArbFile is List) {
         for (final path in listPathArbFile) {
           if (path.isNotEmpty && path.endsWith('.arb')) {
             listDistribution.add(_api.loadTranslations(
