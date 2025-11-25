@@ -292,7 +292,14 @@ bool canUseCachedTranslation({
   if (distributionTimeToUpdate != null) {
     return distributionTimeToUpdate.isAfter(DateTime.now());
   } else {
-    return translationTimestamp == cachedTranslationTimestamp;
+    if (cachedTranslationTimestamp == null) {
+      return false;
+    }
+    if (translationTimestamp == null) {
+      return true;
+    }
+
+    return translationTimestamp <= cachedTranslationTimestamp;
   }
 }
 
