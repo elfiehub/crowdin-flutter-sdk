@@ -157,11 +157,6 @@ class Crowdin {
       }
     }
 
-    if (!await _isConnectionTypeAllowed(_connectionType) || CrowdinRequestLimiter().pauseRequests) {
-      _arb = null;
-      return; // return from function if connection type is forbidden for downloading translations
-    }
-
     bool canUpdate = !canUseCachedTranslation(
       distributionTimeToUpdate: _translationTimeToUpdate,
       translationTimestamp: _timestamp,
@@ -178,6 +173,11 @@ class Crowdin {
           }
           return;
         }
+      }
+
+      if (!await _isConnectionTypeAllowed(_connectionType) || CrowdinRequestLimiter().pauseRequests) {
+        _arb = null;
+        return; // return from function if connection type is forbidden for downloading translations
       }
 
       // map locales to avoid problems with different language codes on Crowdin side and supported
