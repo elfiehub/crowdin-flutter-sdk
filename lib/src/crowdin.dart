@@ -85,7 +85,7 @@ class Crowdin {
 
     await CrowdinRequestLimiter().init(_storage);
 
-    _timestampCached = await _storage.getTranslationTimestamp();
+    _timestampCached = _storage.getTranslationTimestamp();
 
     _distributionHash = distributionHash;
     CrowdinLogger.printLog('distributionHash $_distributionHash');
