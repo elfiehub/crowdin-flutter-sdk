@@ -85,7 +85,7 @@ class Crowdin {
 
     await CrowdinRequestLimiter().init(_storage);
 
-    _timestampCached = await _storage.getTranslationTimestamp();
+    _timestampCached = _storage.getTranslationTimestamp();
 
     _distributionHash = distributionHash;
     CrowdinLogger.printLog('distributionHash $_distributionHash');
@@ -157,11 +157,6 @@ class Crowdin {
       }
     }
 
-    if (!await _isConnectionTypeAllowed(_connectionType) || CrowdinRequestLimiter().pauseRequests) {
-      _arb = null;
-      return; // return from function if connection type is forbidden for downloading translations
-    }
-
     bool canUpdate = !canUseCachedTranslation(
       distributionTimeToUpdate: _translationTimeToUpdate,
       translationTimestamp: _timestamp,
@@ -180,6 +175,11 @@ class Crowdin {
         }
       }
 
+      if (!await _isConnectionTypeAllowed(_connectionType) || CrowdinRequestLimiter().pauseRequests) {
+        _arb = null;
+        return; // return from function if connection type is forbidden for downloading translations
+      }
+
       // map locales to avoid problems with different language codes on Crowdin side and supported
       // by GlobalMaterialLocalizations class for some countries
       Locale mappedLocale =
@@ -187,7 +187,7 @@ class Crowdin {
 
       final listPathArbFile = _distributionsMap[mappedLocale.toLanguageTag()];
       final List<Future<Map<String, dynamic>?>> listDistribution = [];
-      if (listPathArbFile != null && listPathArbFile is List<String>) {
+      if (listPathArbFile != null && listPathArbFile is List) {
         for (final path in listPathArbFile) {
           if (path.isNotEmpty && path.endsWith('.arb')) {
             listDistribution.add(_api.loadTranslations(
@@ -292,7 +292,14 @@ bool canUseCachedTranslation({
   if (distributionTimeToUpdate != null) {
     return distributionTimeToUpdate.isAfter(DateTime.now());
   } else {
-    return translationTimestamp == cachedTranslationTimestamp;
+    if (cachedTranslationTimestamp == null) {
+      return false;
+    }
+    if (translationTimestamp == null) {
+      return true;
+    }
+
+    return translationTimestamp <= cachedTranslationTimestamp;
   }
 }
 
