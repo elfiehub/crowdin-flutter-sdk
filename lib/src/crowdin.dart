@@ -73,14 +73,22 @@ class Crowdin {
   /// contains all parameters needed for OAuth authentication
   static late CrowdinAuthConfig? _authConfig;
 
+  static bool _isEnabled = false;
+
   /// Crowdin SDK initialization
   static Future<void> init({
     required String distributionHash,
     Duration? updatesInterval,
     InternetConnectionType? connectionType,
     bool withRealTimeUpdates = false,
+    bool isEnabled = true,
     CrowdinAuthConfig? authConfigurations,
   }) async {
+    _isEnabled = isEnabled;
+    if (!_isEnabled) {
+      CrowdinLogger.printLog('Crowdin is disabled');
+      return;
+    }
     await _storage.init();
 
     await CrowdinRequestLimiter().init(_storage);
@@ -145,6 +153,11 @@ class Crowdin {
 
   /// Load translations from Crowdin for a specific locale
   static Future<void> loadTranslations(Locale locale) async {
+    if (!_isEnabled) {
+      CrowdinLogger.printLog('Crowdin is disabled, skipping loading translations');
+      return;
+    }
+    
     Map<String, dynamic>? distribution;
 
     if (manifest != null) {

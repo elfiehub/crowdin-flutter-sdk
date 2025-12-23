@@ -37,6 +37,7 @@ class Extractor {
     for (var i = 0; i < placeholders.length; i++) {
       final placeholder = placeholders.values.toList()[i];
       final value = args[placeholder.name];
+      if(value == null) return null;
       final optionals = {
         for (final op in placeholder.optionalParameters) op.name: op.value
       };
