@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:crowdin_sdk/src/crowdin_request_limiter.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
 
@@ -23,8 +24,8 @@ class CrowdinApi {
             {'timestamp': timeStamp}),
       );
       if (response == null) return null;
-      Map<String, dynamic>? responseDecoded =
-          jsonDecode(utf8.decode(response.bodyBytes));
+      final utf8Data = utf8.decode(response.bodyBytes);
+      Map<String, dynamic>? responseDecoded = await compute((String content) => jsonDecode(content), utf8Data);
       return responseDecoded;
     } catch (ex) {
       CrowdinLogger.printLog(
@@ -38,18 +39,18 @@ class CrowdinApi {
   }) async {
     try {
       var response = await client.crowdinGet(
-        Uri.parse(
-            'https://distributions.crowdin.net/$distributionHash/manifest.json'),
-      );
+            Uri.parse('https://distributions.crowdin.net/$distributionHash/manifest.json'),
+          )
+          .timeout(const Duration(seconds: 3));
       if (response == null) {
         return null;
       } else if (response.statusCode >= 400 && response.statusCode < 500) {
-        requestLimiter.incrementErrorCounter();
+        await requestLimiter.incrementErrorCounter();
         return null;
       } else {
         Map<String, dynamic> responseDecoded =
             jsonDecode(utf8.decode(response.bodyBytes));
-        requestLimiter.reset();
+        await requestLimiter.reset();
         return responseDecoded;
       }
     } catch (ex) {

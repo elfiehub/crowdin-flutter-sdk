@@ -23,10 +23,10 @@ class CrowdinRequestLimiter {
   bool get pauseRequests =>
       _stopPermanently || _pauseRequests || _checkIsPausedForToday();
 
-  init(CrowdinStorage storage) {
+  Future<void> init(CrowdinStorage storage) async {
     _storage = storage;
-    _stopPermanently = _storage.getIsPausedPermanently() ?? false;
-    _errorMap = _storage.getErrorMap() ?? {};
+    _stopPermanently = await _storage.getIsPausedPermanently() ?? false;
+    _errorMap = await _storage.getErrorMap() ?? {};
   }
 
   /// Checks if the requests should be paused for today based on the error count.
@@ -43,7 +43,7 @@ class CrowdinRequestLimiter {
   }
 
   /// Increments the error counter for the current date.
-  void incrementErrorCounter() {
+  Future<void> incrementErrorCounter() async {
     DateFormat formatter = DateFormat('yyyy-MM-dd');
     String currentDateString = formatter.format(DateTime.now());
     if (_errorMap[currentDateString] != null) {
@@ -51,24 +51,24 @@ class CrowdinRequestLimiter {
         _errorMap[currentDateString] = _errorMap[currentDateString]! + 1;
       }
       if (_errorMap[currentDateString]! >= maxErrors) {
-        checkPausedDays(currentDateString);
+        await checkPausedDays(currentDateString);
       }
     } else {
       _errorMap[currentDateString] = 1;
     }
-    _storage.setErrorMap(_cleanErrorMapFromUnusedDays());
+    await _storage.setErrorMap(await _cleanErrorMapFromUnusedDays());
   }
 
-  reset() {
+  Future<void> reset() async {
     if (!_stopPermanently) {
       _pauseRequests = false;
       _errorMap = {};
-      _storage.setErrorMap(_errorMap);
+      await _storage.setErrorMap(_errorMap);
     }
   }
 
   /// Checks if the number of errors in the last `maxDaysInRow` days exceeds `maxErrors`.
-  void checkPausedDays(String newDate) {
+  Future<void> checkPausedDays(String newDate) async {
     int daysInRow = 0;
     if (_errorMap.length >= maxDaysInRow) {
       DateTime currentDate = DateTime.parse(newDate);
@@ -82,28 +82,28 @@ class CrowdinRequestLimiter {
       }
       if (daysInRow >= maxDaysInRow) {
         _errorMap.clear();
-        _stopRequestsPermanently();
+        await _stopRequestsPermanently();
       }
     }
   }
 
   /// Cleans the error map from unused days, keeping only the last `maxDaysInRow` days.
-  Map<String, int> _cleanErrorMapFromUnusedDays() {
+  Future<Map<String, int>> _cleanErrorMapFromUnusedDays() async {
     DateTime currentDate = DateTime.now();
     _errorMap.removeWhere((date, _) {
       DateTime dateTime = DateTime.parse(date);
       return dateTime
           .isBefore(currentDate.subtract(const Duration(days: maxDaysInRow)));
     });
-    _storage.setErrorMap(_errorMap);
+    await _storage.setErrorMap(_errorMap);
     return _errorMap;
   }
 
   /// Permanently stops requests by setting the pause flag and updating the storage.
-  void _stopRequestsPermanently() {
+  Future<void> _stopRequestsPermanently() async {
     _pauseRequests = true;
     _stopPermanently = true;
-    _storage.setIsPausedPermanently(true);
-    _storage.setErrorMap(_errorMap);
+    await _storage.setIsPausedPermanently(true);
+    await _storage.setErrorMap(_errorMap);
   }
 }

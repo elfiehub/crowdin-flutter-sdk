@@ -1,30 +1,39 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:crowdin_sdk/src/crowdin_logger.dart';
 import 'package:crowdin_sdk/src/exceptions/crowdin_exceptions.dart';
+import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 
-String _kCrowdinTexts = 'crowdin_texts';
-String _kTranslationTimestamp = 'translation_timestamp';
-String _kIsPausedPermanently = 'is_paused_permanently';
-String _kErrorMap = 'errorMap';
+const String _kCrowdinFolder = 'crowdin_translations';
+const String _kTranslationTimestamp = 'translation_timestamp';
+const String _kIsPausedPermanentlyFile = 'is_paused_permanently.json';
+const String _kErrorMapFile = 'error_map.json';
 
 class CrowdinStorage {
   CrowdinStorage();
 
+  late Directory _storageDirectory;
   late SharedPreferences _sharedPrefs;
 
-  Future<SharedPreferences> init() async {
+  Future<void> init() async {
+    final appDocDir = await getApplicationDocumentsDirectory();
+    _storageDirectory = Directory(path.join(appDocDir.path, _kCrowdinFolder));
+
+    // Create the directory if it doesn't exist
+    if (!await _storageDirectory.exists()) {
+      await _storageDirectory.create(recursive: true);
+    }
+
     _sharedPrefs = await SharedPreferences.getInstance();
-    return _sharedPrefs;
   }
 
   Future<void> setTranslationTimeStamp(int? timestamp) async {
     try {
-      if (_sharedPrefs.containsKey(_kTranslationTimestamp)) {
-        await _sharedPrefs.remove(_kTranslationTimestamp);
-      }
       await _sharedPrefs.setInt(_kTranslationTimestamp, timestamp ?? 1);
     } catch (_) {
       throw CrowdinException("Can't store translation timestamp");
@@ -42,69 +51,92 @@ class CrowdinStorage {
 
   Future<void> setDistribution(String distribution) async {
     try {
-      if (_sharedPrefs.containsKey(_kCrowdinTexts)) {
-        await _sharedPrefs.remove(_kCrowdinTexts);
+      // Parse the distribution to get locale
+      final distributionData = await compute(decode, distribution);
+      final locale = distributionData['@@locale'] as String?;
+      if (locale == null) {
+        throw CrowdinException("Distribution doesn't contain locale information");
       }
-      await _sharedPrefs.setString(_kCrowdinTexts, distribution);
-    } catch (_) {
-      throw CrowdinException("Can't store the distribution");
+
+      // Save distribution as a separate JSON file per locale
+      final fileName = '${locale.replaceAll('-', '_')}.json';
+      final file = File(path.join(_storageDirectory.path, fileName));
+      await file.writeAsString(distribution);
+    } catch (e) {
+      throw CrowdinException("Can't store the distribution: $e");
     }
   }
 
-  Map<String, dynamic>? getTranslation(Locale locale) {
+  Future<Map<String, dynamic>?> getTranslation(Locale locale) async {
     try {
-      String? distributionStr = _sharedPrefs.getString(_kCrowdinTexts);
-      if (distributionStr != null) {
-        Map<String, dynamic>? distribution = jsonDecode(distributionStr);
-        var distributionLocale = Locale(distribution?['@@locale']);
-        if (distributionLocale.toString() == locale.toString()) {
-          return distribution;
-        } else {
-          return null;
-        }
+      final fileName = '${locale.toString().replaceAll('-', '_')}.json';
+      final file = File(path.join(_storageDirectory.path, fileName));
+
+      if (!await file.exists()) {
+        return null;
       }
+
+      final content = await file.readAsString();
+      final distribution = await compute(decode, content);
+
+      return distribution;
     } catch (ex) {
-      throw CrowdinException("Can't get distribution from storage");
+      throw CrowdinException("Can't get distribution from storage: $ex");
     }
-    return null;
   }
 
-  void setIsPausedPermanently(bool shouldPause) {
+  Future<void> setIsPausedPermanently(bool shouldPause) async {
     try {
-      _sharedPrefs.setBool(_kIsPausedPermanently, shouldPause);
+      final file = File(path.join(_storageDirectory.path, _kIsPausedPermanentlyFile));
+      await file.writeAsString(jsonEncode({'isPaused': shouldPause}));
     } catch (ex) {
       throw CrowdinException("Can't store the isPausedPermanently value");
     }
   }
 
-  bool? getIsPausedPermanently() {
+  Future<bool?> getIsPausedPermanently() async {
     try {
-      bool? isPausedPermanently = _sharedPrefs.getBool(_kIsPausedPermanently);
-      return isPausedPermanently;
+      final file = File(path.join(_storageDirectory.path, _kIsPausedPermanentlyFile));
+      if (!await file.exists()) {
+        return null;
+      }
+      final content = await file.readAsString();
+      final data = jsonDecode(content) as Map<String, dynamic>;
+      return data['isPaused'] as bool?;
     } catch (ex) {
       throw CrowdinException("Can't get isPausedPermanently from storage");
     }
   }
 
-  void setErrorMap(Map<String, int> errorMap) {
+  Future<void> setErrorMap(Map<String, int> errorMap) async {
     try {
-      _sharedPrefs.setString(_kErrorMap, jsonEncode(errorMap));
+      final file = File(path.join(_storageDirectory.path, _kErrorMapFile));
+      await file.writeAsString(jsonEncode(errorMap));
     } catch (ex) {
       throw CrowdinException("Can't store the errorMap");
     }
   }
 
-  Map<String, int>? getErrorMap() {
+  Future<Map<String, int>?> getErrorMap() async {
     try {
-      String? errorMapString = _sharedPrefs.getString(_kErrorMap);
-      if (errorMapString != null) {
-        Map<String, dynamic> decodedMap = jsonDecode(errorMapString);
-        return decodedMap.map((k, v) => MapEntry(k, v as int));
+      final file = File(path.join(_storageDirectory.path, _kErrorMapFile));
+      if (!await file.exists()) {
+        return null;
       }
-      return errorMapString != null ? jsonDecode(errorMapString) : null;
+      final content = await file.readAsString();
+      final decodedMap = jsonDecode(content) as Map<String, dynamic>;
+      return decodedMap.map((k, v) => MapEntry(k, v as int));
     } catch (ex) {
       CrowdinLogger.printLog("Can't get errorMap from storage");
       return null;
     }
+  }
+
+  Map<String, dynamic> decode(String content) {
+    return jsonDecode(content) as Map<String, dynamic>;
+  }
+
+  String encode(Map<String, dynamic> json) {
+    return jsonEncode(json);
   }
 }

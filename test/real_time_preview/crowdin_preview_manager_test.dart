@@ -1,11 +1,27 @@
+import 'dart:io';
 import 'package:crowdin_sdk/crowdin_sdk.dart';
 import 'package:crowdin_sdk/src/real_time_preview/crowdin_preview_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:crowdin_sdk/src/common/gen_l10n_types.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import '../test_arb.dart';
+
+// Mock path provider for testing
+class MockPathProviderPlatform extends Fake
+    with MockPlatformInterfaceMixin
+    implements PathProviderPlatform {
+  final Directory tempDir;
+
+  MockPathProviderPlatform(this.tempDir);
+
+  @override
+  Future<String?> getApplicationDocumentsPath() async {
+    return tempDir.path;
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -112,8 +128,15 @@ void main() {
   });
 
   group('getText test with realTimePreview enabled', () {
+    late Directory tempDir;
+    
     setUp(() async {
-      SharedPreferences.setMockInitialValues({});
+      // Create a temporary directory for testing
+      tempDir = await Directory.systemTemp.createTemp('crowdin_test_');
+      
+      // Set up mock path provider
+      PathProviderPlatform.instance = MockPathProviderPlatform(tempDir);
+      
       await Crowdin.init(
           distributionHash: '',
           withRealTimeUpdates: true,
@@ -125,6 +148,13 @@ void main() {
       Crowdin.arb = AppResourceBundle(testPreviewArb);
       Crowdin.crowdinPreviewManager
           .setPreviewArb(AppResourceBundle(testPreviewArb));
+    });
+    
+    tearDown(() async {
+      // Clean up the temporary directory
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
     });
     test('should return values from previewArb', () async {
       String? simpleText = Crowdin.getText('en', 'example');

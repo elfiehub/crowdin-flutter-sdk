@@ -1,6 +1,12 @@
 var testArb = {
   "@@locale": "en",
-  "example": "Example",
+  "example": "Example {abc}",
+  "@example": {
+    "description": "A message with a single parameter",
+    "placeholders": {
+      "abc": {"type": "String", "example": "Bob"}
+    }
+  },
   "hello": "Hello {userName}",
   "@hello": {
     "description": "A message with a single parameter",
